@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fix Multiple Google Calendar Links (Add 1 Day)</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; max-width: 800px; }
+        textarea, input, button { width: 100%; margin-top: 10px; font-size: 1em; }
+        button { padding: 10px; }
+        .fixed-link { margin-top: 10px; word-break: break-word; }
+    </style>
+</head>
+<body>
+    <h2>Fix Multiple Google Calendar Links (Shift Date +1)</h2>
+    <label for="calendarLinks">Paste your Google Calendar links (one per line):</label>
+    <textarea id="calendarLinks" rows="10" placeholder="Paste links here..."></textarea>
+    <button onclick="fixLinks()">Fix All Dates</button>
+
+    <div id="output"></div>
+
+    <script>
+        function addOneDay(dateStr) {
+            let year = parseInt(dateStr.slice(0, 4));
+            let month = parseInt(dateStr.slice(4, 6)) - 1; // Months are 0-based in JS
+            let day = parseInt(dateStr.slice(6, 8));
+            let date = new Date(Date.UTC(year, month, day));
+            date.setUTCDate(date.getUTCDate() + 1);
+            return date.toISOString().slice(0, 10).replace(/-/g, "");
+        }
+
+        function fixLinks() {
+            let input = document.getElementById('calendarLinks').value.trim();
+            let links = input.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            let outputHTML = "";
+
+            links.forEach(url => {
+                let match = url.match(/dates=(\d{8})T(\d{6})Z\/(\d{8})T(\d{6})Z/);
+                if (!match) {
+                    outputHTML += "<div class='fixed-link' style='color:red;'>❌ Invalid: " + url + "</div>";
+                    return;
+                }
+                let newStart = addOneDay(match[1]) + "T" + match[2] + "Z";
+                let newEnd = addOneDay(match[3]) + "T" + match[4] + "Z";
+                let newUrl = url.replace(/dates=\d{8}T\d{6}Z\/\d{8}T\d{6}Z/, "dates=" + newStart + "/" + newEnd);
+                outputHTML += "<div class='fixed-link'>✅ <a href='" + newUrl + "' target='_blank'>" + newUrl + "</a></div>";
+            });
+
+            document.getElementById('output').innerHTML = outputHTML;
+        }
+    </script>
+</body>
+</html> 
