@@ -75,7 +75,7 @@
         try {
           // call is.gd simple API (no key needed)
           const resp = await fetch(
-            'https://is.gd/create.php?format=simple&url=' +
+            'https://tinyurl.com/api-create.php?url=' +
             encodeURIComponent(fullUrl)
           );
           const shortUrl = await resp.text();
