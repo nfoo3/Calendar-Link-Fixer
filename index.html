@@ -1,52 +1,92 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Fix Multiple Google Calendar Links (Add 1 Day)</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; max-width: 800px; }
-        textarea, input, button { width: 100%; margin-top: 10px; font-size: 1em; }
-        button { padding: 10px; }
-        .fixed-link { margin-top: 10px; word-break: break-word; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Fix & Shorten Google Calendar Links</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; max-width: 800px; }
+    textarea, button { width: 100%; margin-top: 10px; font-size: 1em; }
+    button { padding: 10px; }
+    .fixed-link { margin-top: 10px; word-break: break-word; }
+    .spinner {
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-top-color: rgba(0,0,0,0.8);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-left: 0.5em;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
-    <h2>Fix Multiple Google Calendar Links (Shift Date +1)</h2>
-    <label for="calendarLinks">Paste your Google Calendar links (one per line):</label>
-    <textarea id="calendarLinks" rows="10" placeholder="Paste links here..."></textarea>
-    <button onclick="fixLinks()">Fix All Dates</button>
+  <h2>Fix & Shorten Google Calendar Links (Shift Date +1)</h2>
+  <label for="calendarLinks">Paste your Google Calendar links (one per line):</label>
+  <textarea id="calendarLinks" rows="8" placeholder="Paste links here..."></textarea>
+  <button onclick="fixLinks()">Fix & Shorten Links</button>
 
-    <div id="output"></div>
+  <div id="output"></div>
 
-    <script>
-        function addOneDay(dateStr) {
-            let year = parseInt(dateStr.slice(0, 4));
-            let month = parseInt(dateStr.slice(4, 6)) - 1; // Months are 0-based in JS
-            let day = parseInt(dateStr.slice(6, 8));
-            let date = new Date(Date.UTC(year, month, day));
-            date.setUTCDate(date.getUTCDate() + 1);
-            return date.toISOString().slice(0, 10).replace(/-/g, "");
+  <script>
+    function addOneDay(dateStr) {
+      const year  = +dateStr.slice(0,4);
+      const month = +dateStr.slice(4,6) - 1;
+      const day   = +dateStr.slice(6,8);
+      const d = new Date(Date.UTC(year, month, day));
+      d.setUTCDate(d.getUTCDate() + 1);
+      return d.toISOString().slice(0,10).replace(/-/g, "");
+    }
+
+    async function fixLinks() {
+      const input = document.getElementById('calendarLinks').value.trim();
+      const links = input.split('\n').map(l=>l.trim()).filter(l=>l);
+      const out   = document.getElementById('output');
+      out.innerHTML = '';
+
+      for (const url of links) {
+        // date‐match
+        const m = url.match(/dates=(\d{8})T(\d{6})Z\/(\d{8})T(\d{6})Z/);
+        if (!m) {
+          out.insertAdjacentHTML('beforeend',
+            `<div class="fixed-link" style="color:red;">
+              ❌ Invalid URL: ${url}
+            </div>`);
+          continue;
         }
 
-        function fixLinks() {
-            let input = document.getElementById('calendarLinks').value.trim();
-            let links = input.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-            let outputHTML = "";
+        // build shifted link
+        const start = addOneDay(m[1]) + 'T' + m[2] + 'Z';
+        const end   = addOneDay(m[3]) + 'T' + m[4] + 'Z';
+        const fullUrl = url.replace(
+          /dates=\d{8}T\d{6}Z\/\d{8}T\d{6}Z/,
+          'dates=' + start + '/' + end
+        );
 
-            links.forEach(url => {
-                let match = url.match(/dates=(\d{8})T(\d{6})Z\/(\d{8})T(\d{6})Z/);
-                if (!match) {
-                    outputHTML += "<div class='fixed-link' style='color:red;'>❌ Invalid: " + url + "</div>";
-                    return;
-                }
-                let newStart = addOneDay(match[1]) + "T" + match[2] + "Z";
-                let newEnd = addOneDay(match[3]) + "T" + match[4] + "Z";
-                let newUrl = url.replace(/dates=\d{8}T\d{6}Z\/\d{8}T\d{6}Z/, "dates=" + newStart + "/" + newEnd);
-                outputHTML += "<div class='fixed-link'>✅ <a href='" + newUrl + "' target='_blank'>" + newUrl + "</a></div>";
-            });
+        // placeholder spinner
+        const placeholderId = 'ph-' + Math.random().toString(36).substr(2,6);
+        out.insertAdjacentHTML('beforeend',
+          `<div class="fixed-link">
+             ✅ <span id="${placeholderId}">Shortening…<span class="spinner"></span></span>
+           </div>`);
 
-            document.getElementById('output').innerHTML = outputHTML;
+        try {
+          // call is.gd simple API (no key needed)
+          const resp = await fetch(
+            'https://is.gd/create.php?format=simple&url=' +
+            encodeURIComponent(fullUrl)
+          );
+          const shortUrl = await resp.text();
+          document.getElementById(placeholderId).innerHTML =
+            `<a href="${shortUrl}" target="_blank">${shortUrl}</a>`;
+        } catch (e) {
+          document.getElementById(placeholderId).innerHTML =
+            `<span style="color:red;">Error shortening link</span>`;
         }
-    </script>
+      }
+    }
+  </script>
 </body>
-</html> 
+</html>
